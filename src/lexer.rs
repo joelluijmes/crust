@@ -19,7 +19,13 @@ pub struct Lexer {
 }
 
 #[derive(Debug)]
-pub enum LexerError {
+pub struct LexerError {
+    pub kind: LexerErrorKind,
+    pub loc: Location,
+}
+
+#[derive(Debug)]
+pub enum LexerErrorKind {
     UnexpectedChar,
 }
 
@@ -165,11 +171,14 @@ impl Lexer {
             }));
         }
 
-        Err(LexerError::UnexpectedChar)
+        Err(LexerError {
+            kind: LexerErrorKind::UnexpectedChar,
+            loc: self.loc(),
+        })
     }
 
     /// Returns the current location of the lexer
-    fn loc(&self) -> Location {
+    pub fn loc(&self) -> Location {
         Location {
             filepath: self.filepath.clone(),
             row: self.row,

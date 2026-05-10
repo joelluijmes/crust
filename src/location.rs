@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(Clone)]
 pub struct Location {
     /// Path to the source code
     pub filepath: String,

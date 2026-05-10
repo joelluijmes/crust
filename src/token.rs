@@ -14,6 +14,7 @@ pub enum TokenKind {
     String,
 }
 
+#[derive(Clone)]
 pub struct Token {
     /// Kind of the token
     pub kind: TokenKind,

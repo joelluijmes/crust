@@ -1,4 +1,5 @@
-use crate::lexer::{Lexer, LexerError};
+use crate::lexer::{Lexer, LexerError, LexerErrorKind};
+use crate::location::Location;
 use crate::token::{Token, TokenKind};
 
 #[derive(Debug)]
@@ -9,16 +10,40 @@ pub struct Parser {
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub enum ParserError {
-    UnexpectedToken {
-        expected_kinds: Vec<TokenKind>,
-        received_token: Token,
-    },
+pub struct ParserError {
+    pub kind: ParserErrorKind,
+    pub token: Option<Token>,
+    pub loc: Option<Location>,
+}
+
+impl ParserError {
+    pub fn with_token(kind: ParserErrorKind, token: Token) -> Self {
+        let loc = token.loc.clone();
+        ParserError {
+            kind,
+            token: Some(token),
+            loc: Some(loc),
+        }
+    }
+
+    pub fn with_location(kind: ParserErrorKind, loc: Location) -> Self {
+        ParserError {
+            kind,
+            token: None,
+            loc: Some(loc),
+        }
+    }
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum ParserErrorKind {
+    UnexpectedToken { expected_kinds: Vec<TokenKind> },
     UnexpectedEof,
-    UnexpectedName,
+    UnknownName,
     NotImplementedType(String),
     FailedToParseNumber,
-    LexerError(LexerError),
+    LexerError(LexerErrorKind),
 }
 
 #[derive(Debug)]
@@ -35,7 +60,7 @@ pub enum Statement {
 
 impl From<LexerError> for ParserError {
     fn from(v: LexerError) -> Self {
-        Self::LexerError(v)
+        Self::with_location(ParserErrorKind::LexerError(v.kind), v.loc)
     }
 }
 
@@ -82,10 +107,13 @@ impl Parser {
         let token = self.expect_token(TokenKind::Name)?;
 
         if token.value != b"int" {
-            return Err(ParserError::NotImplementedType(format!(
-                "Type '{}' not supported",
-                String::from_utf8_lossy(&token.value)
-            )));
+            return Err(ParserError::with_token(
+                ParserErrorKind::NotImplementedType(format!(
+                    "Type '{}' not supported",
+                    String::from_utf8_lossy(&token.value)
+                )),
+                token,
+            ));
         }
 
         Ok(Type::Int)
@@ -111,13 +139,18 @@ impl Parser {
                         let return_value = String::from_utf8(token_return_value.value)
                             .expect("Invalid ASCII characters")
                             .parse::<i32>()
-                            .map_err(|_| ParserError::FailedToParseNumber)?;
+                            .map_err(|_| {
+                                ParserError::with_token(ParserErrorKind::FailedToParseNumber, token)
+                            })?;
 
                         self.expect_token(TokenKind::Semicolon)?;
 
                         body.push(Statement::Return { return_value })
                     }
-                    _ => return Err(ParserError::UnexpectedName),
+
+                    _ => {
+                        return Err(ParserError::with_token(ParserErrorKind::UnknownName, token));
+                    }
                 },
                 _ => unreachable!(),
             }
@@ -135,11 +168,17 @@ impl Parser {
     fn expect_token_one_of(&mut self, kinds: &[TokenKind]) -> Result<Token, ParserError> {
         match self.lexer.next_token()? {
             Some(token) if kinds.contains(&token.kind) => Ok(token),
-            Some(token) => Err(ParserError::UnexpectedToken {
-                expected_kinds: kinds.to_vec(),
-                received_token: token,
-            }),
-            None => Err(ParserError::UnexpectedEof),
+            Some(token) => Err(ParserError::with_token(
+                ParserErrorKind::UnexpectedToken {
+                    expected_kinds: kinds.to_vec(),
+                },
+                token,
+            )),
+
+            None => Err(ParserError::with_location(
+                ParserErrorKind::UnexpectedEof,
+                self.lexer.loc(),
+            )),
         }
     }
 }
