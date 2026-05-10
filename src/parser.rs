@@ -1,5 +1,3 @@
-use std::fmt;
-
 use crate::lexer::{Lexer, LexerError};
 use crate::token::{Token, TokenKind};
 
@@ -10,6 +8,7 @@ pub struct Parser {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum ParserError {
     UnexpectedToken {
         expected_kinds: Vec<TokenKind>,
@@ -28,6 +27,7 @@ pub enum Type {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum Statement {
     Funcall,
     Return { return_value: i32 },
@@ -42,13 +42,14 @@ impl From<LexerError> for ParserError {
 type Block = Vec<Statement>;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Function {
     /// Name of the function
-    name: String,
+    pub name: String,
     /// Return type of the function
-    return_type: Type,
+    pub return_type: Type,
     /// Implementation of the function
-    body: Block,
+    pub body: Block,
 }
 
 impl Parser {
@@ -56,10 +57,8 @@ impl Parser {
         Parser { lexer }
     }
 
-    pub fn parse_program(&mut self) {
-        let function = self.parse_function();
-
-        println!("{:#?}", function);
+    pub fn parse_program(&mut self) -> Result<Function, ParserError> {
+        self.parse_function()
     }
 
     fn parse_function(&mut self) -> Result<Function, ParserError> {

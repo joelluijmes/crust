@@ -6,6 +6,8 @@ A hobby project, a tiny C compiler written in Rust that emits assembly.
 
 - Learning Rust, it's a new language for me.
 - Learning how compilers work (lexing, parsing, codegen), I've never built one before.
+- Learning how ARM64 assembly works, I'm only somewhat familiar with x86 (32-bit) and AVR (8-bit microcontrollers).
+- Learning how native MacOS development works (e.g. syscalls), I've only done Win32 development before.
 - Aiming for something concrete, take a small subset of C and turn it into assembly.
 
 Inspired by [Tsoding's compiler video](https://www.youtube.com/watch?v=Yi6NxMxCFY8).
@@ -14,15 +16,33 @@ Inspired by [Tsoding's compiler video](https://www.youtube.com/watch?v=Yi6NxMxCF
 
 The implementation is written by hand (old school 🤓). AI is only used to ask questions about Rust, language features, patterns, idiomatic style, etc.
 
-## Running
+## Example
+
+Right now, the compiler hard codes to examples/main.c
 
 ```sh
-cargo run
+cargo run -q > examples/hello.s
+cc -o examples/hello examples/hello.s
+./examples/hello
+echo $?
 ```
 
 ## Status
 
-- [x] Lexing
-- [ ] Parsing
-- [ ] Semantic analysis (maybe)
-- [ ] Code generation
+| Stage             | Status      |
+| ----------------- | ----------- |
+| Lexer             | Working     |
+| Parser            | In progress |
+| Semantic analysis | Not started |
+| Codegen           | In progress |
+
+### Supported today
+
+| Feature                                     | Supported |
+| ------------------------------------------- | --------- |
+| `int` type                                  | Yes       |
+| Function definition (`int main()`, no args) | Yes       |
+| `return <int-literal>;`                     | Yes       |
+| Other types                                 | No        |
+| Expressions / variables                     | No        |
+| Control flow                                | No        |
