@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::location::Location;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenKind {
     Name,
     OpenParen,
