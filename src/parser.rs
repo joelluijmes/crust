@@ -54,7 +54,7 @@ pub enum Type {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum Statement {
-    Funcall,
+    Funcall { name: String, args: Vec<String> },
     Return { return_value: i32 },
 }
 
@@ -124,6 +124,26 @@ impl Parser {
             .expect("Failed to convert ASCII"))
     }
 
+    fn parse_args(&mut self) -> Result<Vec<String>, ParserError> {
+        self.expect_token(TokenKind::OpenParen)?;
+
+        let mut args = Vec::<String>::new();
+        loop {
+            let token = self.expect_token_one_of(&[
+                TokenKind::String,
+                TokenKind::Number,
+                TokenKind::CloseParen,
+            ])?;
+
+            match token.kind {
+                TokenKind::CloseParen => break,
+                _ => args.push(String::from_utf8(token.value).expect("Failed to convert ASCII")),
+            }
+        }
+
+        Ok(args)
+    }
+
     fn parse_block(&mut self) -> Result<Block, ParserError> {
         self.expect_token(TokenKind::OpenCurly)?;
 
@@ -146,6 +166,18 @@ impl Parser {
                         self.expect_token(TokenKind::Semicolon)?;
 
                         body.push(Statement::Return { return_value })
+                    }
+
+                    // TODO: actually check what the name is instead supporting just printf
+                    b"printf" => {
+                        let args = self.parse_args()?;
+
+                        self.expect_token(TokenKind::Semicolon)?;
+
+                        body.push(Statement::Funcall {
+                            name: "printf".to_string(),
+                            args,
+                        });
                     }
 
                     _ => {

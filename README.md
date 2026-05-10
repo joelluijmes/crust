@@ -38,11 +38,13 @@ echo $?
 
 ### Supported today
 
-| Feature                                     | Supported |
-| ------------------------------------------- | --------- |
-| `int` type                                  | Yes       |
-| Function definition (`int main()`, no args) | Yes       |
-| `return <int-literal>;`                     | Yes       |
-| Other types                                 | No        |
-| Expressions / variables                     | No        |
-| Control flow                                | No        |
+| Feature                                     | Supported                                                           |
+| ------------------------------------------- | ------------------------------------------------------------------- |
+| `int` type                                  | Yes                                                                 |
+| Function definition (`int main()`, no args) | Yes                                                                 |
+| `return <int-literal>;`                     | Yes                                                                 |
+| `printf("<string-literal>");`               | Hardcoded to a `write` syscall to stdout, no format-string handling |
+| Other types                                 | No                                                                  |
+| User-defined functions / function calls     | No                                                                  |
+| Expressions / variables                     | No                                                                  |
+| Control flow                                | No                                                                  |
