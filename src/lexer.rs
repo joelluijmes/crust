@@ -31,7 +31,7 @@ pub enum LexerErrorKind {
 
 impl Lexer {
     /// Creates a lexer from `filepath`
-    pub fn from_file(filepath: &str) -> io::Result<Self> {
+    pub fn from_file(filepath: &String) -> io::Result<Self> {
         let source = fs::read_to_string(filepath)?.into_bytes();
 
         Ok(Lexer {

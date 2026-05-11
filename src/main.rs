@@ -1,3 +1,5 @@
+use std::{env, process::exit};
+
 mod codegen;
 mod lexer;
 mod location;
@@ -9,8 +11,13 @@ use lexer::Lexer;
 use parser::Parser;
 
 fn main() {
-    let filepath = "examples/hello.c";
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        println!("Missing input source file");
+        exit(1);
+    }
 
+    let filepath = &args[1];
     let lexer = Lexer::from_file(filepath).expect("Failed to create lexer");
 
     let mut parser = Parser::new(lexer);
