@@ -31,7 +31,9 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
         .filter(|s| matches!(s, Statement::Assign { name: _, value: _ }))
         .count();
     let stack_size = ((variable_count as f64 / 16.0).ceil() as usize) * 16;
-    writeln!(&mut output, "sub sp, sp, {stack_size}\n")?;
+    if stack_size > 0 {
+        writeln!(&mut output, "sub sp, sp, #{stack_size}\n")?;
+    }
 
     // Keep track where on the stack the var is
     let mut variable_stack_index = 0;
@@ -54,14 +56,14 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                     &mut output,
                     "\
                     ; fd 1 = stdout\n\
-                    mov x0, 1\n\
+                    mov x0, #1\n\
                     ; x1: address of the string\n\
                     adrp x1, label_{n}@PAGE\n\
                     add x1, x1, label_{n}@PAGEOFF\n\
                     ; x2: length of the string\n\
-                    mov x2, {len}\n\
+                    mov x2, #{len}\n\
                     ; x16: 4 = syscall write\n\
-                    mov x16, 4\n\
+                    mov x16, #4\n\
                     svc 0x80\n",
                 )?
             }
@@ -70,8 +72,8 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 &mut output,
                 "\
                 ; syscall exit with code in x0\n\
-                mov x0, {return_value}\n\
-                mov x16, 1\n\
+                mov x0, #{return_value}\n\
+                mov x16, #1\n\
                 svc 0x80\n",
             )?,
 
@@ -83,8 +85,8 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                     &mut output,
                     "\
                     ; {name} = {value}\n\
-                    mov w8, {value}\n\
-                    str w8, [sp, {stack_offset}]\n",
+                    mov w8, #{value}\n\
+                    str w8, [sp, #{stack_offset}]\n",
                 )?
             }
         }
