@@ -17,6 +17,9 @@ pub enum TokenKind {
     // Keywords
     KwReturn,
     KwInt,
+
+    // Operations
+    OpAssign,
 }
 
 #[derive(Clone)]
@@ -38,5 +41,12 @@ impl fmt::Debug for Token {
             self.loc,
             String::from_utf8_lossy(&self.value),
         )
+    }
+}
+
+impl Token {
+    /// Converts the `value` to `String`
+    pub fn value_as_string(self) -> String {
+        String::from_utf8(self.value).expect("Invalid ASCII characters")
     }
 }

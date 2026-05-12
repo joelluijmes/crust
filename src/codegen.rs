@@ -24,8 +24,19 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
         _main:\n"
     )?;
 
-    let mut labels = Vec::<String>::new();
+    // Make room on the stack
+    let variable_count = program
+        .body
+        .iter()
+        .filter(|s| matches!(s, Statement::Assign { name: _, value: _ }))
+        .count();
+    let stack_size = ((variable_count as f64 / 16.0).ceil() as usize) * 16;
+    writeln!(&mut output, "sub sp, sp, {stack_size}\n")?;
 
+    // Keep track where on the stack the var is
+    let mut variable_stack_index = 0;
+
+    let mut labels = Vec::<String>::new();
     for statement in program.body {
         match statement {
             Statement::Funcall { name, args } => {
@@ -63,6 +74,19 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 mov x16, 1\n\
                 svc 0x80\n",
             )?,
+
+            Statement::Assign { name, value } => {
+                variable_stack_index += 1;
+                let stack_offset = stack_size - variable_stack_index * 4;
+
+                writeln!(
+                    &mut output,
+                    "\
+                    ; {name} = {value}\n\
+                    mov w8, {value}\n\
+                    str w8, [sp, {stack_offset}]\n",
+                )?
+            }
         }
     }
 

@@ -136,6 +136,7 @@ impl Lexer {
             b'(' => Some(TokenKind::OpenParen),
             b')' => Some(TokenKind::CloseParen),
             b';' => Some(TokenKind::Semicolon),
+            b'=' => Some(TokenKind::OpAssign),
             _ => None,
         } {
             self.chop_char();

@@ -18,10 +18,10 @@ The implementation is written by hand (old school 🤓). AI is only used to ask 
 
 ## Example
 
-Right now, the compiler hard codes to examples/main.c
+The compiler takes a `.c` file as input and writes assembly to stdout.
 
 ```sh
-cargo run -q > examples/hello.s
+cargo run -q examples/hello.c > examples/hello.s
 cc -o examples/hello examples/hello.s
 ./examples/hello
 echo $?
@@ -44,7 +44,8 @@ echo $?
 | Function definition (`int main()`, no args) | Yes                                                                 |
 | `return <int-literal>;`                     | Yes                                                                 |
 | `printf("<string-literal>");`               | Hardcoded to a `write` syscall to stdout, no format-string handling |
+| `int <name> = <int-literal>;`               | Yes, stored on the stack                                            |
 | Other types                                 | No                                                                  |
 | User-defined functions / function calls     | No                                                                  |
-| Expressions / variables                     | No                                                                  |
+| Expressions / reading variables             | No                                                                  |
 | Control flow                                | No                                                                  |

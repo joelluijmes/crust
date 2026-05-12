@@ -38,11 +38,15 @@ impl ParserError {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum ParserErrorKind {
+    /// `expect_token` didn't found one of the expected tokens.
     UnexpectedToken { expected_kinds: Vec<TokenKind> },
-    UnexpectedEof,
-    UnknownName,
+    /// Received a token from the lexer we can't parse (yet).
+    UnparsableToken,
+    /// Received a type we can't parse (yet).
     NotImplementedType(String),
+    /// Failed to convert the text into a number.
     FailedToParseNumber,
+    /// Lexer raised an error during parsing.
     LexerError(LexerErrorKind),
 }
 
@@ -55,6 +59,7 @@ pub enum Type {
 #[allow(dead_code)]
 pub enum Statement {
     Funcall { name: String, args: Vec<String> },
+    Assign { name: String, value: i32 },
     Return { return_value: i32 },
 }
 
@@ -104,7 +109,7 @@ impl Parser {
     }
 
     fn parse_type(&mut self) -> Result<Type, ParserError> {
-        let token = self.expect_token(TokenKind::Identifier)?;
+        let token = self.expect_token(TokenKind::KwInt)?;
 
         if token.value != b"int" {
             return Err(ParserError::with_token(
@@ -158,17 +163,23 @@ impl Parser {
                 TokenKind::CloseCurly => return Ok(body),
 
                 TokenKind::KwReturn => {
-                    let token_return_value = self.expect_token(TokenKind::Number)?;
-                    let return_value = String::from_utf8(token_return_value.value)
-                        .expect("Invalid ASCII characters")
-                        .parse::<i32>()
-                        .map_err(|_| {
-                            ParserError::with_token(ParserErrorKind::FailedToParseNumber, token)
-                        })?;
-
+                    let return_value = self.parse_number(&token)?;
                     self.expect_token(TokenKind::Semicolon)?;
 
                     body.push(Statement::Return { return_value })
+                }
+
+                TokenKind::KwInt => {
+                    let variable_name = self.expect_token(TokenKind::Identifier)?;
+                    self.expect_token(TokenKind::OpAssign)?;
+
+                    let value = self.parse_number(&token)?;
+                    self.expect_token(TokenKind::Semicolon)?;
+
+                    body.push(Statement::Assign {
+                        name: variable_name.value_as_string(),
+                        value,
+                    });
                 }
 
                 TokenKind::Identifier => match token.value.as_slice() {
@@ -185,12 +196,28 @@ impl Parser {
                     }
 
                     _ => {
-                        return Err(ParserError::with_token(ParserErrorKind::UnknownName, token));
+                        return Err(ParserError::with_token(
+                            ParserErrorKind::UnparsableToken,
+                            token,
+                        ));
                     }
                 },
-                _ => unreachable!(),
+
+                _ => {
+                    return Err(ParserError::with_token(
+                        ParserErrorKind::UnparsableToken,
+                        token,
+                    ));
+                }
             }
         }
+    }
+
+    fn parse_number(&mut self, start_token: &Token) -> Result<i32, ParserError> {
+        let token = self.expect_token(TokenKind::Number)?;
+        Ok(token.value_as_string().parse::<i32>().map_err(|_| {
+            ParserError::with_token(ParserErrorKind::FailedToParseNumber, start_token.clone())
+        })?)
     }
 
     /// Gathers the next token, compare if it matches the passed `kind`, if so return that.
