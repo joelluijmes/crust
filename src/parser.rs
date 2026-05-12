@@ -104,7 +104,7 @@ impl Parser {
     }
 
     fn parse_type(&mut self) -> Result<Type, ParserError> {
-        let token = self.expect_token(TokenKind::Name)?;
+        let token = self.expect_token(TokenKind::Identifier)?;
 
         if token.value != b"int" {
             return Err(ParserError::with_token(
@@ -120,8 +120,10 @@ impl Parser {
     }
 
     fn parse_function_name(&mut self) -> Result<String, ParserError> {
-        Ok(String::from_utf8(self.expect_token(TokenKind::Name)?.value)
-            .expect("Failed to convert ASCII"))
+        Ok(
+            String::from_utf8(self.expect_token(TokenKind::Identifier)?.value)
+                .expect("Failed to convert ASCII"),
+        )
     }
 
     fn parse_args(&mut self) -> Result<Vec<String>, ParserError> {
@@ -150,24 +152,26 @@ impl Parser {
         let mut body = Block::new();
 
         loop {
-            let token = self.expect_token_one_of(&[TokenKind::Name, TokenKind::CloseCurly])?;
+            let token = self.lexer.next_token()?;
+
             match token.kind {
                 TokenKind::CloseCurly => return Ok(body),
-                TokenKind::Name => match token.value.as_slice() {
-                    b"return" => {
-                        let token_return_value = self.expect_token(TokenKind::Number)?;
-                        let return_value = String::from_utf8(token_return_value.value)
-                            .expect("Invalid ASCII characters")
-                            .parse::<i32>()
-                            .map_err(|_| {
-                                ParserError::with_token(ParserErrorKind::FailedToParseNumber, token)
-                            })?;
 
-                        self.expect_token(TokenKind::Semicolon)?;
+                TokenKind::KwReturn => {
+                    let token_return_value = self.expect_token(TokenKind::Number)?;
+                    let return_value = String::from_utf8(token_return_value.value)
+                        .expect("Invalid ASCII characters")
+                        .parse::<i32>()
+                        .map_err(|_| {
+                            ParserError::with_token(ParserErrorKind::FailedToParseNumber, token)
+                        })?;
 
-                        body.push(Statement::Return { return_value })
-                    }
+                    self.expect_token(TokenKind::Semicolon)?;
 
+                    body.push(Statement::Return { return_value })
+                }
+
+                TokenKind::Identifier => match token.value.as_slice() {
                     // TODO: actually check what the name is instead supporting just printf
                     b"printf" => {
                         let args = self.parse_args()?;
@@ -199,17 +203,12 @@ impl Parser {
     /// Otherwise an error is returned.
     fn expect_token_one_of(&mut self, kinds: &[TokenKind]) -> Result<Token, ParserError> {
         match self.lexer.next_token()? {
-            Some(token) if kinds.contains(&token.kind) => Ok(token),
-            Some(token) => Err(ParserError::with_token(
+            token if kinds.contains(&token.kind) => Ok(token),
+            token => Err(ParserError::with_token(
                 ParserErrorKind::UnexpectedToken {
                     expected_kinds: kinds.to_vec(),
                 },
                 token,
-            )),
-
-            None => Err(ParserError::with_location(
-                ParserErrorKind::UnexpectedEof,
-                self.lexer.loc(),
             )),
         }
     }

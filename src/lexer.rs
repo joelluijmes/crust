@@ -20,13 +20,18 @@ pub struct Lexer {
 
 #[derive(Debug)]
 pub struct LexerError {
+    /// Kind of the error
     pub kind: LexerErrorKind,
+    /// Current location of the lexer where error happened
     pub loc: Location,
 }
 
 #[derive(Debug)]
 pub enum LexerErrorKind {
-    UnexpectedChar,
+    /// Unexpected unreachable state (or probably more likely unimplemented)
+    Unreachable,
+    /// Lexer reached the end of file
+    UnexpectedEof,
 }
 
 impl Lexer {
@@ -88,7 +93,7 @@ impl Lexer {
     }
 
     /// Returns the next token
-    pub fn next_token(&mut self) -> Result<Option<Token>, LexerError> {
+    pub fn next_token(&mut self) -> Result<Token, LexerError> {
         self.trim_left();
 
         // We don't support the preprocessor
@@ -98,26 +103,30 @@ impl Lexer {
         }
 
         if self.is_empty() {
-            return Ok(None);
+            return Err(LexerError {
+                kind: LexerErrorKind::UnexpectedEof,
+                loc: self.loc(),
+            });
         }
 
         // Save start location of the token
         let start_loc = self.loc();
         let start_cur = self.cur;
 
-        // Parsing of a name / identifier
+        // Parsing of an identifier
         if self.peek().is_ascii_alphabetic() {
             while self.is_not_empty() && self.peek().is_ascii_alphabetic() {
                 self.chop_char();
             }
 
             let value = self.source[start_cur..self.cur].to_vec();
+            let kind = self.tokenize_identifier(&value);
 
-            return Ok(Some(Token {
-                kind: TokenKind::Name,
+            return Ok(Token {
+                kind,
                 loc: start_loc,
                 value,
-            }));
+            });
         }
 
         // Parsing of literals
@@ -132,11 +141,11 @@ impl Lexer {
             self.chop_char();
             let value = self.source[start_cur..self.cur].to_vec();
 
-            return Ok(Some(Token {
+            return Ok(Token {
                 kind,
                 loc: start_loc,
                 value,
-            }));
+            });
         }
 
         // Parsing of string
@@ -149,11 +158,11 @@ impl Lexer {
 
             let value = self.source[start_cur..self.cur].to_vec();
 
-            return Ok(Some(Token {
+            return Ok(Token {
                 kind: TokenKind::String,
                 loc: start_loc,
                 value,
-            }));
+            });
         }
 
         // Parsing of number
@@ -164,20 +173,29 @@ impl Lexer {
 
             let value = self.source[start_cur..self.cur].to_vec();
 
-            return Ok(Some(Token {
+            return Ok(Token {
                 kind: TokenKind::Number,
                 loc: start_loc,
                 value,
-            }));
+            });
         }
 
         Err(LexerError {
-            kind: LexerErrorKind::UnexpectedChar,
+            kind: LexerErrorKind::Unreachable,
             loc: self.loc(),
         })
     }
 
-    /// Returns the current location of the lexer
+    /// Tries to parse the Identifier to a Keyword
+    fn tokenize_identifier(&self, identifier: &Vec<u8>) -> TokenKind {
+        match identifier.as_slice() {
+            b"return" => TokenKind::KwReturn,
+            b"int" => TokenKind::KwInt,
+            _ => TokenKind::Identifier,
+        }
+    }
+
+    /// Returns the curren); location of the lexer
     pub fn loc(&self) -> Location {
         Location {
             filepath: self.filepath.clone(),

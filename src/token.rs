@@ -2,9 +2,10 @@ use std::fmt;
 
 use crate::location::Location;
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenKind {
-    Name,
+    Identifier,
     OpenParen,
     CloseParen,
     OpenCurly,
@@ -12,6 +13,10 @@ pub enum TokenKind {
     Semicolon,
     Number,
     String,
+
+    // Keywords
+    KwReturn,
+    KwInt,
 }
 
 #[derive(Clone)]
