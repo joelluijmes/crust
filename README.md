@@ -45,7 +45,8 @@ echo $?
 | `return <int-literal>;`                     | Yes                                                                 |
 | `printf("<string-literal>");`               | Hardcoded to a `write` syscall to stdout, no format-string handling |
 | `int <name> = <int-literal>;`               | Yes, stored on the stack                                            |
+| `int <name> = <var>;`                       | Yes, copied from another stack slot                                 |
 | Other types                                 | No                                                                  |
 | User-defined functions / function calls     | No                                                                  |
-| Expressions / reading variables             | No                                                                  |
+| Expressions                                 | No, RHS of an initializer is either a literal or a single variable  |
 | Control flow                                | No                                                                  |

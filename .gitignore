@@ -2,3 +2,4 @@
 /examples/*
 !/examples/*.c
 !/examples/*.s
+/examples/*.clang.s

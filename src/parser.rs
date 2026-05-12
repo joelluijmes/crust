@@ -59,7 +59,8 @@ pub enum Type {
 #[allow(dead_code)]
 pub enum Statement {
     Funcall { name: String, args: Vec<String> },
-    Assign { name: String, value: i32 },
+    Initialize { name: String, value: i32 },
+    Assign { name: String, value: String },
     Return { return_value: i32 },
 }
 
@@ -157,13 +158,13 @@ impl Parser {
         let mut body = Block::new();
 
         loop {
-            let token = self.lexer.next_token()?;
+            let token = self.next_token()?;
 
             match token.kind {
                 TokenKind::CloseCurly => return Ok(body),
 
                 TokenKind::KwReturn => {
-                    let return_value = self.parse_number(&token)?;
+                    let return_value = self.expect_token(TokenKind::Number)?.value_as_int();
                     self.expect_token(TokenKind::Semicolon)?;
 
                     body.push(Statement::Return { return_value })
@@ -173,13 +174,36 @@ impl Parser {
                     let variable_name = self.expect_token(TokenKind::Identifier)?;
                     self.expect_token(TokenKind::OpAssign)?;
 
-                    let value = self.parse_number(&token)?;
-                    self.expect_token(TokenKind::Semicolon)?;
+                    // TODO: refactor into parsing proper expressions
+                    let expr_token = self.next_token()?;
+                    match expr_token.kind {
+                        // E.g. int x = <int-literal>
+                        TokenKind::Number => {
+                            self.expect_token(TokenKind::Semicolon)?;
 
-                    body.push(Statement::Assign {
-                        name: variable_name.value_as_string(),
-                        value,
-                    });
+                            body.push(Statement::Initialize {
+                                name: variable_name.value_as_string(),
+                                value: expr_token.value_as_int(),
+                            });
+                        }
+
+                        // E.g. int x = var;
+                        TokenKind::Identifier => {
+                            self.expect_token(TokenKind::Semicolon)?;
+
+                            body.push(Statement::Assign {
+                                name: variable_name.value_as_string(),
+                                value: expr_token.value_as_string(),
+                            });
+                        }
+
+                        _ => {
+                            return Err(ParserError::with_token(
+                                ParserErrorKind::UnparsableToken,
+                                token,
+                            ));
+                        }
+                    }
                 }
 
                 TokenKind::Identifier => match token.value.as_slice() {
@@ -213,11 +237,9 @@ impl Parser {
         }
     }
 
-    fn parse_number(&mut self, start_token: &Token) -> Result<i32, ParserError> {
-        let token = self.expect_token(TokenKind::Number)?;
-        Ok(token.value_as_string().parse::<i32>().map_err(|_| {
-            ParserError::with_token(ParserErrorKind::FailedToParseNumber, start_token.clone())
-        })?)
+    /// Returns the next token from the lexer
+    fn next_token(&mut self) -> Result<Token, ParserError> {
+        Ok(self.lexer.next_token()?)
     }
 
     /// Gathers the next token, compare if it matches the passed `kind`, if so return that.
@@ -229,7 +251,7 @@ impl Parser {
     /// Gathers the next token, compare if it matches one of the passed `kinds`, if so return that.
     /// Otherwise an error is returned.
     fn expect_token_one_of(&mut self, kinds: &[TokenKind]) -> Result<Token, ParserError> {
-        match self.lexer.next_token()? {
+        match self.next_token()? {
             token if kinds.contains(&token.kind) => Ok(token),
             token => Err(ParserError::with_token(
                 ParserErrorKind::UnexpectedToken {

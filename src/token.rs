@@ -49,4 +49,11 @@ impl Token {
     pub fn value_as_string(self) -> String {
         String::from_utf8(self.value).expect("Invalid ASCII characters")
     }
+
+    // Converts the `value` to `i32`
+    pub fn value_as_int(self) -> i32 {
+        self.value_as_string()
+            .parse::<i32>()
+            .expect("Failed to parse number")
+    }
 }

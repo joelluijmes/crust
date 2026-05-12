@@ -5,6 +5,7 @@ use crate::parser::{Function, Statement};
 #[derive(Debug)]
 pub enum CodegenError {
     WriteError(std::fmt::Error),
+    UndeclaredVariable,
 }
 
 impl From<std::fmt::Error> for CodegenError {
@@ -28,17 +29,24 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
     let variable_count = program
         .body
         .iter()
-        .filter(|s| matches!(s, Statement::Assign { name: _, value: _ }))
+        .filter(|s| {
+            matches!(
+                s,
+                Statement::Initialize { name: _, value: _ }
+                    | Statement::Assign { name: _, value: _ }
+            )
+        })
         .count();
-    let stack_size = ((variable_count as f64 / 16.0).ceil() as usize) * 16;
+
+    // TODO: allow other types than i32
+    let stack_size = ((variable_count as f64 * 4.0) / 16.0).ceil() as usize * 16;
     if stack_size > 0 {
         writeln!(&mut output, "sub sp, sp, #{stack_size}\n")?;
     }
 
-    // Keep track where on the stack the var is
-    let mut variable_stack_index = 0;
-
+    let mut variables = Vec::<String>::new();
     let mut labels = Vec::<String>::new();
+
     for statement in program.body {
         match statement {
             Statement::Funcall { name, args } => {
@@ -77,17 +85,36 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 svc 0x80\n",
             )?,
 
-            Statement::Assign { name, value } => {
-                variable_stack_index += 1;
-                let stack_offset = stack_size - variable_stack_index * 4;
+            Statement::Initialize { name, value } => {
+                variables.push(name.clone());
+                let sp_offset = stack_size - variables.len() * 4;
 
                 writeln!(
                     &mut output,
                     "\
                     ; {name} = {value}\n\
                     mov w8, #{value}\n\
-                    str w8, [sp, #{stack_offset}]\n",
+                    str w8, [sp, #{sp_offset}]\n",
                 )?
+            }
+
+            Statement::Assign { name, value } => {
+                variables.push(name.clone());
+                let sp_lhs_offset = stack_size - variables.len() * 4;
+
+                match variables.iter().position(|x| *x == value) {
+                    None => return Err(CodegenError::UndeclaredVariable),
+                    Some(variable_idx) => {
+                        let sp_rhs_offset = stack_size - (variable_idx + 1) * 4;
+                        writeln!(
+                            &mut output,
+                            "\
+                            ; {name} = {value}\n\
+                            ldr w8, [sp, #{sp_rhs_offset}]\n\
+                            str w8, [sp, #{sp_lhs_offset}]\n",
+                        )?
+                    }
+                }
             }
         }
     }
