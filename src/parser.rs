@@ -59,6 +59,7 @@ pub enum Type {
 #[allow(dead_code)]
 pub enum Statement {
     Funcall { name: String, args: Vec<String> },
+    Declare { name: String },
     Initialize { name: String, value: i32 },
     Assign { name: String, value: String },
     Return { return_value: i32 },
@@ -133,8 +134,6 @@ impl Parser {
     }
 
     fn parse_args(&mut self) -> Result<Vec<String>, ParserError> {
-        self.expect_token(TokenKind::OpenParen)?;
-
         let mut args = Vec::<String>::new();
         loop {
             let token = self.expect_token_one_of(&[
@@ -163,77 +162,111 @@ impl Parser {
             match token.kind {
                 TokenKind::CloseCurly => return Ok(body),
 
-                TokenKind::KwReturn => {
-                    let return_value = self.expect_token(TokenKind::Number)?.value_as_int();
-                    self.expect_token(TokenKind::Semicolon)?;
-
-                    body.push(Statement::Return { return_value })
-                }
-
-                TokenKind::KwInt => {
-                    let variable_name = self.expect_token(TokenKind::Identifier)?;
-                    self.expect_token(TokenKind::OpAssign)?;
-
-                    // TODO: refactor into parsing proper expressions
-                    let expr_token = self.next_token()?;
-                    match expr_token.kind {
-                        // E.g. int x = <int-literal>
-                        TokenKind::Number => {
-                            self.expect_token(TokenKind::Semicolon)?;
-
-                            body.push(Statement::Initialize {
-                                name: variable_name.value_as_string(),
-                                value: expr_token.value_as_int(),
-                            });
-                        }
-
-                        // E.g. int x = var;
-                        TokenKind::Identifier => {
-                            self.expect_token(TokenKind::Semicolon)?;
-
-                            body.push(Statement::Assign {
-                                name: variable_name.value_as_string(),
-                                value: expr_token.value_as_string(),
-                            });
-                        }
-
-                        _ => {
-                            return Err(ParserError::with_token(
-                                ParserErrorKind::UnparsableToken,
-                                token,
-                            ));
-                        }
-                    }
-                }
-
-                TokenKind::Identifier => match token.value.as_slice() {
-                    // TODO: actually check what the name is instead supporting just printf
-                    b"printf" => {
-                        let args = self.parse_args()?;
-
-                        self.expect_token(TokenKind::Semicolon)?;
-
-                        body.push(Statement::Funcall {
-                            name: "printf".to_string(),
-                            args,
-                        });
-                    }
-
-                    _ => {
-                        return Err(ParserError::with_token(
-                            ParserErrorKind::UnparsableToken,
-                            token,
-                        ));
-                    }
-                },
-
                 _ => {
-                    return Err(ParserError::with_token(
-                        ParserErrorKind::UnparsableToken,
-                        token,
-                    ));
+                    // TODO: check if statement or func call
+                    let statement = self.parse_statement(token)?;
+                    body.push(statement);
                 }
             }
+        }
+    }
+
+    fn parse_statement(&mut self, token: Token) -> Result<Statement, ParserError> {
+        match token.kind {
+            TokenKind::KwReturn => {
+                let return_value = self.expect_token(TokenKind::Number)?.value_as_int();
+                self.expect_token(TokenKind::Semicolon)?;
+
+                Ok(Statement::Return { return_value })
+            }
+
+            TokenKind::KwInt => {
+                let variable_name = self.expect_token(TokenKind::Identifier)?;
+
+                // Either it is an initialization or a declaration only
+                match self
+                    .expect_token_one_of(&[TokenKind::OpAssign, TokenKind::Semicolon])?
+                    .kind
+                {
+                    TokenKind::OpAssign => {
+                        self.parse_variable_assignment(variable_name.value_as_string())
+                    }
+
+                    TokenKind::Semicolon => Ok(Statement::Declare {
+                        name: variable_name.value_as_string(),
+                    }),
+
+                    _ => unreachable!(),
+                }
+            }
+
+            TokenKind::Identifier => {
+                let variable_name = token.value_as_string();
+
+                // Either it is an assignment or a funccall
+                match self
+                    .expect_token_one_of(&[TokenKind::OpAssign, TokenKind::OpenParen])?
+                    .kind
+                {
+                    TokenKind::OpAssign => self.parse_variable_assignment(variable_name),
+
+                    TokenKind::OpenParen => {
+                        // TODO: actually check what the name is instead supporting just printf
+                        if variable_name == "printf" {
+                            let args = self.parse_args()?;
+
+                            self.expect_token(TokenKind::Semicolon)?;
+
+                            return Ok(Statement::Funcall {
+                                name: variable_name,
+                                args,
+                            });
+                        }
+
+                        todo!()
+                    }
+                    _ => unreachable!(),
+                }
+            }
+
+            _ => {
+                return Err(ParserError::with_token(
+                    ParserErrorKind::UnparsableToken,
+                    token.clone(),
+                ));
+            }
+        }
+    }
+
+    fn parse_variable_assignment(
+        &mut self,
+        variable_name: String,
+    ) -> Result<Statement, ParserError> {
+        // TODO: refactor into parsing proper expressions
+        let token = self.expect_token_one_of(&[TokenKind::Number, TokenKind::Identifier])?;
+
+        match token.kind {
+            // E.g. int x = <int-literal>
+            TokenKind::Number => {
+                self.expect_token(TokenKind::Semicolon)?;
+
+                Ok(Statement::Initialize {
+                    name: variable_name,
+                    value: token.value_as_int(),
+                })
+            }
+
+            // E.g. int x = var;
+            TokenKind::Identifier => {
+                self.expect_token(TokenKind::Semicolon)?;
+
+                Ok(Statement::Assign {
+                    name: variable_name,
+                    value: token.value_as_string(),
+                })
+            }
+
+            _ => unreachable!(),
         }
     }
 

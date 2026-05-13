@@ -44,15 +44,17 @@ make
 
 ### Supported today
 
-| Feature                                     | Supported                                                                   |
-| ------------------------------------------- | --------------------------------------------------------------------------- |
-| `int` type                                  | Yes                                                                         |
-| Function definition (`int main()`, no args) | Yes                                                                         |
-| `return <int-literal>;`                     | Yes                                                                         |
-| `printf("<string-literal>");`               | Yes, lowered to a `bl _printf` call against libc, no format-string handling |
-| `int <name> = <int-literal>;`               | Yes, stored on the stack                                                    |
-| `int <name> = <var>;`                       | Yes, copied from another stack slot                                         |
-| Other types                                 | No                                                                          |
-| User-defined functions / function calls     | No                                                                          |
-| Expressions                                 | No, RHS of an initializer is either a literal or a single variable          |
-| Control flow                                | No                                                                          |
+| Feature                                       | Supported                                                                   |
+| --------------------------------------------- | --------------------------------------------------------------------------- |
+| `int` type                                    | Yes                                                                         |
+| Function definition (`int main()`, no args)   | Yes                                                                         |
+| `return <int-literal>;`                       | Yes                                                                         |
+| `printf("<string-literal>");`                 | Yes, lowered to a `bl _printf` call against libc, no format-string handling |
+| `int <name>;`                                 | Yes, reserves a stack slot                                                  |
+| `int <name> = <int-literal>;`                 | Yes, stored on the stack                                                    |
+| `int <name> = <var>;`                         | Yes, copied from another stack slot                                         |
+| `<name> = <int-literal>;` / `<name> = <var>;` | Yes, assignment to a previously declared variable                           |
+| Other types                                   | No                                                                          |
+| User-defined functions / function calls       | No                                                                          |
+| Expressions                                   | No, RHS of an initializer is either a literal or a single variable          |
+| Control flow                                  | No                                                                          |

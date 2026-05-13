@@ -55,7 +55,7 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
         "\
             sub sp, sp, #{stack_size}\n\
             stp x29, x30, [sp, #{sp_x29}]\n\
-            mov x29, sp\n"
+            add x29, sp, #{sp_x29}\n"
     )?;
 
     for statement in program.body {
@@ -97,9 +97,16 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 )?
             }
 
-            Statement::Initialize { name, value } => {
+            Statement::Declare { name } => {
                 variables.push(name.clone());
-                let sp_offset = stack_size - variables.len() * 4;
+            }
+
+            Statement::Initialize { name, value } => {
+                if !variables.contains(&name) {
+                    variables.push(name.clone());
+                }
+
+                let sp_offset = sp_x29 - (variables.len() - 2) * 4;
 
                 writeln!(
                     &mut output,
@@ -112,12 +119,12 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
 
             Statement::Assign { name, value } => {
                 variables.push(name.clone());
-                let sp_lhs_offset = stack_size - variables.len() * 4;
+                let sp_lhs_offset = sp_x29 - (variables.len() - 2) * 4;
 
                 match variables.iter().position(|x| *x == value) {
                     None => return Err(CodegenError::UndeclaredVariable),
                     Some(variable_idx) => {
-                        let sp_rhs_offset = stack_size - (variable_idx + 1) * 4;
+                        let sp_rhs_offset = sp_x29 - (variable_idx - 1) * 4;
                         writeln!(
                             &mut output,
                             "\

@@ -1,12 +1,14 @@
 int main()
 {
-    int x = 42;
-    int y = x;
-    int z = x;
+    // Assign literal
+    int a = 42;
 
-    int a = 1;
-    int b = 2;
-    int c = 3;
+    // Assign variable
+    int b = a;
+
+    // Split declaration, and initialization
+    int c;
+    c = 10;
 
     return 0;
 }

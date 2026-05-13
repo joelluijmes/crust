@@ -4,7 +4,7 @@
 _main:
 sub sp, sp, #16
 stp x29, x30, [sp, #0]
-mov x29, sp
+add x29, sp, #0
 
 ; printf(...)
 adrp x0, label_1@PAGE
