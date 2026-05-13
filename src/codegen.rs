@@ -39,13 +39,24 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
         .count();
 
     // TODO: allow other types than i32
-    let stack_size = ((variable_count as f64 * 4.0) / 16.0).ceil() as usize * 16;
-    if stack_size > 0 {
-        writeln!(&mut output, "sub sp, sp, #{stack_size}\n")?;
-    }
+    let mut stack_size = ((variable_count as f64 * 4.0) / 16.0).ceil() as usize * 16;
 
-    let mut variables = Vec::<String>::new();
+    // TODO: check if function actually calls something
+    // We reserve 16 bytes on the stack for storing x29, x30
+    stack_size += 16;
+
+    let mut variables = vec!["x29".to_string(), "x30".to_string()];
     let mut labels = Vec::<String>::new();
+
+    let sp_x29 = stack_size - 16;
+
+    writeln!(
+        &mut output,
+        "\
+            sub sp, sp, #{stack_size}\n\
+            stp x29, x30, [sp, #{sp_x29}]\n\
+            mov x29, sp\n"
+    )?;
 
     for statement in program.body {
         match statement {
@@ -59,31 +70,32 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 labels.push(args[0].clone());
 
                 let n = labels.len();
-                let len = args[0].len();
                 writeln!(
                     &mut output,
                     "\
-                    ; fd 1 = stdout\n\
-                    mov x0, #1\n\
-                    ; x1: address of the string\n\
-                    adrp x1, label_{n}@PAGE\n\
-                    add x1, x1, label_{n}@PAGEOFF\n\
-                    ; x2: length of the string\n\
-                    mov x2, #{len}\n\
-                    ; x16: 4 = syscall write\n\
-                    mov x16, #4\n\
-                    svc 0x80\n",
+                    ; printf(...)\n\
+                    adrp x0, label_{n}@PAGE\n\
+                    add x0, x0, label_{n}@PAGEOFF\n\
+                    bl _printf\n"
                 )?
             }
 
-            Statement::Return { return_value } => writeln!(
-                &mut output,
-                "\
-                ; syscall exit with code in x0\n\
-                mov x0, #{return_value}\n\
-                mov x16, #1\n\
-                svc 0x80\n",
-            )?,
+            Statement::Return { return_value } => {
+                writeln!(
+                    &mut output,
+                    "\
+                    ldp x29, x30, [sp, #{sp_x29}]\n\
+                    add sp, sp, #{stack_size}\n"
+                )?;
+
+                writeln!(
+                    &mut output,
+                    "\
+                    ; return {return_value}\n\
+                    mov w0, #{return_value}\n\
+                    ret\n",
+                )?
+            }
 
             Statement::Initialize { name, value } => {
                 variables.push(name.clone());
@@ -119,9 +131,13 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
         }
     }
 
+    if labels.len() > 0 {
+        writeln!(&mut output, ".section __TEXT,__cstring,cstring_literals")?;
+    }
+
     for (i, label) in labels.iter().enumerate() {
         let n = i + 1;
-        write!(&mut output, "label_{n}: .ascii {label}")?;
+        writeln!(&mut output, "label_{n}: .asciz {label}")?;
     }
 
     Ok(output)
