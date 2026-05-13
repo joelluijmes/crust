@@ -11,10 +11,14 @@ _main:                                  ; @main
 	str	wzr, [sp, #12]
 	mov	w8, #42                         ; =0x2a
 	str	w8, [sp, #8]
-	ldr	w8, [sp, #8]
+	mov	w8, #24                         ; =0x18
 	str	w8, [sp, #4]
-	mov	w8, #10                         ; =0xa
+	ldr	w8, [sp, #8]
 	str	w8, [sp]
+	ldr	w8, [sp, #4]
+	str	w8, [sp, #8]
+	ldr	w8, [sp]
+	str	w8, [sp, #4]
 	add	sp, sp, #16
 	ret
 	.cfi_endproc

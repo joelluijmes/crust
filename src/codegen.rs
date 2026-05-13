@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::{collections::HashMap, fmt::Write};
 
 use crate::parser::{Function, Statement};
 
@@ -25,30 +25,33 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
         _main:\n"
     )?;
 
-    // Make room on the stack
-    let variable_count = program
-        .body
-        .iter()
-        .filter(|s| {
-            matches!(
-                s,
-                Statement::Initialize { name: _, value: _ }
-                    | Statement::Assign { name: _, value: _ }
-            )
-        })
-        .count();
-
     // TODO: allow other types than i32
-    let mut stack_size = ((variable_count as f64 * 4.0) / 16.0).ceil() as usize * 16;
+    // prepare the stack frame lookup table
+    let mut variables = HashMap::new();
+    for statement in program.body.iter() {
+        match statement {
+            Statement::Declare { name }
+            | Statement::Assign { name, value: _ }
+            | Statement::Initialize { name, value: _ } => {
+                let sp_offset = (variables.len() + 1) * 4;
+
+                // TODO: check duplicate declaration
+                if variables.get(name) == None {
+                    variables.insert(name, sp_offset);
+                }
+            }
+
+            _ => {}
+        }
+    }
 
     // TODO: check if function actually calls something
     // We reserve 16 bytes on the stack for storing x29, x30
-    stack_size += 16;
-
-    let mut variables = vec!["x29".to_string(), "x30".to_string()];
-    let mut labels = Vec::<String>::new();
-
+    let stack_size = ((variables.len() as f64 * 4.0) / 16.0).ceil() as usize * 16 + 16;
     let sp_x29 = stack_size - 16;
+
+    // TODO: also process in first pass?
+    let mut labels = Vec::<String>::new();
 
     writeln!(
         &mut output,
@@ -58,7 +61,7 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
             add x29, sp, #{sp_x29}\n"
     )?;
 
-    for statement in program.body {
+    for statement in program.body.iter() {
         match statement {
             Statement::Funcall { name, args } => {
                 assert!(
@@ -97,16 +100,15 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 )?
             }
 
-            Statement::Declare { name } => {
-                variables.push(name.clone());
+            Statement::Declare { name: _ } => {
+                // no op in second pass
             }
 
             Statement::Initialize { name, value } => {
-                if !variables.contains(&name) {
-                    variables.push(name.clone());
-                }
-
-                let sp_offset = sp_x29 - (variables.len() - 2) * 4;
+                let sp_offset = sp_x29
+                    - variables
+                        .get(&name)
+                        .ok_or(CodegenError::UndeclaredVariable)?;
 
                 writeln!(
                     &mut output,
@@ -118,22 +120,23 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
             }
 
             Statement::Assign { name, value } => {
-                variables.push(name.clone());
-                let sp_lhs_offset = sp_x29 - (variables.len() - 2) * 4;
+                let sp_lhs_offset = sp_x29
+                    - variables
+                        .get(&name)
+                        .ok_or(CodegenError::UndeclaredVariable)?;
 
-                match variables.iter().position(|x| *x == value) {
-                    None => return Err(CodegenError::UndeclaredVariable),
-                    Some(variable_idx) => {
-                        let sp_rhs_offset = sp_x29 - (variable_idx - 1) * 4;
-                        writeln!(
-                            &mut output,
-                            "\
-                            ; {name} = {value}\n\
-                            ldr w8, [sp, #{sp_rhs_offset}]\n\
-                            str w8, [sp, #{sp_lhs_offset}]\n",
-                        )?
-                    }
-                }
+                let sp_rhs_offset = sp_x29
+                    - variables
+                        .get(&value)
+                        .ok_or(CodegenError::UndeclaredVariable)?;
+
+                writeln!(
+                    &mut output,
+                    "\
+                    ; {name} = {value}\n\
+                    ldr w8, [sp, #{sp_rhs_offset}]\n\
+                    str w8, [sp, #{sp_lhs_offset}]\n",
+                )?
             }
         }
     }
