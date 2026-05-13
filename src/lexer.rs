@@ -96,8 +96,10 @@ impl Lexer {
     pub fn next_token(&mut self) -> Result<Token, LexerError> {
         self.trim_left();
 
-        // We don't support the preprocessor
-        while self.is_not_empty() && self.peek() == b'#' {
+        // We don't support the preprocessor or comments
+        while self.is_not_empty()
+            && (self.peek() == b'#' || self.source[self.cur..].starts_with(b"//"))
+        {
             self.drop_line();
             self.trim_left();
         }
