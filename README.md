@@ -27,6 +27,12 @@ cc -o examples/hello examples/hello.s
 echo $?
 ```
 
+Or build all examples (both `crust`- and `clang`-compiled, side by side) via the `Makefile`:
+
+```sh
+make
+```
+
 ## Status
 
 | Stage             | Status      |
