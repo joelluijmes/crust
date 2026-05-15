@@ -12,8 +12,8 @@ pub struct Parser {
 #[allow(dead_code)]
 pub struct ParserError {
     pub kind: ParserErrorKind,
+    pub loc: Location,
     pub token: Option<Token>,
-    pub loc: Option<Location>,
 }
 
 impl ParserError {
@@ -21,16 +21,16 @@ impl ParserError {
         let loc = token.loc.clone();
         ParserError {
             kind,
+            loc,
             token: Some(token),
-            loc: Some(loc),
         }
     }
 
     pub fn with_location(kind: ParserErrorKind, loc: Location) -> Self {
         ParserError {
             kind,
+            loc,
             token: None,
-            loc: Some(loc),
         }
     }
 }
@@ -87,6 +87,10 @@ pub struct Function {
 impl Parser {
     pub fn new(lexer: Lexer) -> Self {
         Parser { lexer }
+    }
+
+    pub fn lexer(&mut self) -> &mut Lexer {
+        &mut self.lexer
     }
 
     pub fn parse_program(&mut self) -> Result<Function, ParserError> {

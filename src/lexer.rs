@@ -189,6 +189,19 @@ impl Lexer {
         })
     }
 
+    /// Seeks the current index to the given location
+    pub fn seek(&mut self, idx: usize) {
+        self.cur = idx;
+    }
+
+    /// Advances lexer until next line, and returns the result
+    pub fn read_line(&mut self) -> Vec<u8> {
+        let start = self.cur;
+        self.drop_line();
+
+        self.source[start..self.cur].to_vec()
+    }
+
     /// Tries to parse the Identifier to a Keyword
     fn tokenize_identifier(&self, identifier: &Vec<u8>) -> TokenKind {
         match identifier.as_slice() {
@@ -204,6 +217,7 @@ impl Lexer {
             filepath: self.filepath.clone(),
             row: self.row,
             col: self.cur - self.bol,
+            idx: self.cur,
         }
     }
 }

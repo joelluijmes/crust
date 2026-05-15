@@ -8,6 +8,8 @@ pub struct Location {
     pub row: usize,
     /// Current column of the line
     pub col: usize,
+    /// Global index in the source
+    pub idx: usize,
 }
 
 impl fmt::Display for Location {
