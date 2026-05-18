@@ -19,7 +19,13 @@ pub enum TokenKind {
     KwInt,
 
     // Operations
-    OpAssign,
+    Eq,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Gt,
+    Lt,
 }
 
 #[derive(Clone)]

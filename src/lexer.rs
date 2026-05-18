@@ -28,8 +28,8 @@ pub struct LexerError {
 
 #[derive(Debug)]
 pub enum LexerErrorKind {
-    /// Unexpected unreachable state (or probably more likely unimplemented)
-    Unreachable,
+    /// Lexer reached unexpected character
+    UnexpectedCharacter,
     /// Lexer reached the end of file
     UnexpectedEof,
 }
@@ -138,7 +138,13 @@ impl Lexer {
             b'(' => Some(TokenKind::OpenParen),
             b')' => Some(TokenKind::CloseParen),
             b';' => Some(TokenKind::Semicolon),
-            b'=' => Some(TokenKind::OpAssign),
+            b'=' => Some(TokenKind::Eq),
+            b'+' => Some(TokenKind::Plus),
+            b'-' => Some(TokenKind::Minus),
+            b'*' => Some(TokenKind::Star),
+            b'/' => Some(TokenKind::Slash),
+            b'>' => Some(TokenKind::Gt),
+            b'<' => Some(TokenKind::Lt),
             _ => None,
         } {
             self.chop_char();
@@ -184,7 +190,7 @@ impl Lexer {
         }
 
         Err(LexerError {
-            kind: LexerErrorKind::Unreachable,
+            kind: LexerErrorKind::UnexpectedCharacter,
             loc: self.loc(),
         })
     }

@@ -189,10 +189,10 @@ impl Parser {
 
                 // Either it is an initialization or a declaration only
                 match self
-                    .expect_token_one_of(&[TokenKind::OpAssign, TokenKind::Semicolon])?
+                    .expect_token_one_of(&[TokenKind::Eq, TokenKind::Semicolon])?
                     .kind
                 {
-                    TokenKind::OpAssign => {
+                    TokenKind::Eq => {
                         self.parse_variable_assignment(variable_name.value_as_string())
                     }
 
@@ -209,10 +209,10 @@ impl Parser {
 
                 // Either it is an assignment or a funccall
                 match self
-                    .expect_token_one_of(&[TokenKind::OpAssign, TokenKind::OpenParen])?
+                    .expect_token_one_of(&[TokenKind::Eq, TokenKind::OpenParen])?
                     .kind
                 {
-                    TokenKind::OpAssign => self.parse_variable_assignment(variable_name),
+                    TokenKind::Eq => self.parse_variable_assignment(variable_name),
 
                     TokenKind::OpenParen => {
                         // TODO: actually check what the name is instead supporting just printf
@@ -290,12 +290,17 @@ impl Parser {
     fn expect_token_one_of(&mut self, kinds: &[TokenKind]) -> Result<Token, ParserError> {
         match self.next_token()? {
             token if kinds.contains(&token.kind) => Ok(token),
-            token => Err(ParserError::with_token(
-                ParserErrorKind::UnexpectedToken {
-                    expected_kinds: kinds.to_vec(),
-                },
-                token,
-            )),
+            token => todo!(
+                "Unexpected token, got {:?} but expected {:?}\n  at: {:?}",
+                token.kind,
+                kinds,
+                token.loc
+            ), // token => Err(ParserError::with_token(
+               //     ParserErrorKind::UnexpectedToken {
+               //         expected_kinds: kinds.to_vec(),
+               //     },
+               //     token,
+               // )),
         }
     }
 }
