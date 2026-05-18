@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Write};
 
-use crate::parser::{Function, Statement};
+use crate::parser::{Expr, Function, Statement};
 
 #[derive(Debug)]
 pub enum CodegenError {
@@ -83,7 +83,9 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 )?
             }
 
-            Statement::Return { return_value } => {
+            Statement::Return {
+                return_value: Expr::LitInt(n),
+            } => {
                 writeln!(
                     &mut output,
                     "\
@@ -94,8 +96,8 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 writeln!(
                     &mut output,
                     "\
-                    ; return {return_value}\n\
-                    mov w0, #{return_value}\n\
+                    ; return {n}\n\
+                    mov w0, #{n}\n\
                     ret\n",
                 )?
             }
@@ -104,7 +106,10 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 // no op in second pass
             }
 
-            Statement::Initialize { name, value } => {
+            Statement::Initialize {
+                name,
+                value: Expr::LitInt(n),
+            } => {
                 let sp_offset = sp_x29
                     - variables
                         .get(&name)
@@ -113,13 +118,16 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
                 writeln!(
                     &mut output,
                     "\
-                    ; {name} = {value}\n\
-                    mov w8, #{value}\n\
+                    ; {name} = {n}\n\
+                    mov w8, #{n}\n\
                     str w8, [sp, #{sp_offset}]\n",
                 )?
             }
 
-            Statement::Assign { name, value } => {
+            Statement::Assign {
+                name,
+                value: Expr::Identifier(rhs),
+            } => {
                 let sp_lhs_offset = sp_x29
                     - variables
                         .get(&name)
@@ -127,17 +135,19 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
 
                 let sp_rhs_offset = sp_x29
                     - variables
-                        .get(&value)
+                        .get(&rhs)
                         .ok_or(CodegenError::UndeclaredVariable)?;
 
                 writeln!(
                     &mut output,
                     "\
-                    ; {name} = {value}\n\
+                    ; {name} = {rhs}\n\
                     ldr w8, [sp, #{sp_rhs_offset}]\n\
                     str w8, [sp, #{sp_lhs_offset}]\n",
                 )?
             }
+
+            x => todo!("Implement statement {:?}", x),
         }
     }
 
@@ -152,3 +162,5 @@ pub fn generate_program(program: Function) -> Result<String, CodegenError> {
 
     Ok(output)
 }
+
+// fn expect_expr_type(expr: &Expr, t: Expr){}

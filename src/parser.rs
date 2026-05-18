@@ -60,9 +60,15 @@ pub enum Type {
 pub enum Statement {
     Funcall { name: String, args: Vec<String> },
     Declare { name: String },
-    Initialize { name: String, value: i32 },
-    Assign { name: String, value: String },
-    Return { return_value: i32 },
+    Initialize { name: String, value: Expr },
+    Assign { name: String, value: Expr },
+    Return { return_value: Expr },
+}
+
+#[derive(Debug)]
+pub enum Expr {
+    LitInt(i32),
+    Identifier(String),
 }
 
 impl From<LexerError> for ParserError {
@@ -181,7 +187,9 @@ impl Parser {
                 let return_value = self.expect_token(TokenKind::Number)?.value_as_int();
                 self.expect_token(TokenKind::Semicolon)?;
 
-                Ok(Statement::Return { return_value })
+                Ok(Statement::Return {
+                    return_value: Expr::LitInt(return_value),
+                })
             }
 
             TokenKind::KwInt => {
@@ -256,7 +264,7 @@ impl Parser {
 
                 Ok(Statement::Initialize {
                     name: variable_name,
-                    value: token.value_as_int(),
+                    value: Expr::LitInt(token.value_as_int()),
                 })
             }
 
@@ -266,7 +274,7 @@ impl Parser {
 
                 Ok(Statement::Assign {
                     name: variable_name,
-                    value: token.value_as_string(),
+                    value: Expr::Identifier(token.value_as_string()),
                 })
             }
 
